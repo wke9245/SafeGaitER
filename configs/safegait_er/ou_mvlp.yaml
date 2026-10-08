@@ -1,0 +1,12 @@
+extends: casia_b.yaml
+dataset: OU-MVLP
+data_root: data/OU-MVLP
+auxiliary_root: data/CASIA-B
+output: outputs/ou_mvlp
+model:
+  num_classes: 5153
+training:
+  epochs: 100
+  recognition_warmup: 50
+  p: 16
+  k: 4

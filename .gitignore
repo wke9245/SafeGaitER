@@ -1,0 +1,31 @@
+# Runtime environments and Python artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+build/
+dist/
+
+# Dataset and experimental artifacts
+/data/
+/outputs/
+/checkpoints/
+*.pt
+*.pth
+*.pkl
+*.npy
+*.npz
+*.zip
+*.log
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local credentials
+/key.md
