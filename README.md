@@ -1,10 +1,10 @@
 # SafeGait-ER
 
-Method-oriented PyTorch implementation of **SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition**.
+PyTorch implementation of **SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition**.
 
 Submitted to *Applied Soft Computing Journal*, manuscript **ASOC-D-26-11494**.
 
-The repository contains the principal algorithmic components and a single-sequence explanation pipeline. It covers hierarchical gait encoding, spatial reliability, temporal importance, identity contribution, stability prediction, structured privacy risk, risk-adaptive protection, and three-level explanation release.
+The repository provides the principal SafeGait-ER components and CASIA-B evaluation with explicitly defined dataset and membership-attack partitions. It includes subject-level gait recognition, stability prediction, structured privacy risk, risk-adaptive protection, and three-level explanation release. Evaluation uses a frozen trained recognition model and independently fitted post-hoc attackers.
 
 ## Architecture
 
@@ -56,19 +56,27 @@ Official sources: [PyTorch 2.14.1 release](https://github.com/pytorch/pytorch/re
 
 Provide an actual silhouette sequence as a NumPy array, silhouette pickle, or image directory. The reader normalizes silhouettes to 64 by 44 and samples 30 frames.
 
-Run the pipeline from the repository root:
-
-```bash
-python -m scripts.pipeline --input path/to/sequence.npy --device cuda
-```
-
-Use a compatible trained checkpoint and optionally save the permitted release packet:
+Run the pipeline from the repository root with a compatible trained checkpoint:
 
 ```bash
 python -m scripts.pipeline --input path/to/sequence.npy --checkpoint path/to/checkpoint.pt --device cuda --output outputs/release.json
 ```
 
-The default pipeline uses the identity-classifier confidence path. No gallery is supplied by this entry point. Without a checkpoint, parameters are randomly initialized and numerical outputs describe the computational structure only; they are not trained predictions.
+The single-sequence entry point uses identity-classifier confidence and requires a trained checkpoint. The CASIA-B evaluation entry point uses subject-level gallery confidence and seed-specific frozen weights.
+
+## CASIA-B evaluation
+
+The evaluation package defines the recognition, identity-matched membership, and identity-disjoint stress partitions. It computes NM/BG/CL Rank-1, independent membership AUC and TPR at 1% FPR, release-level proportions, and three-seed statistics.
+
+```bash
+python -m scripts.casia_b_index --data-root data/CASIA-B --manifest outputs/casia_b/manifest.csv
+python -m scripts.casia_b_partitions --manifest outputs/casia_b/manifest.csv --seeds 2024 2025 2026
+python -m scripts.casia_b_inference --manifest outputs/casia_b/manifest.csv --checkpoint checkpoints/seed2025.pt --seed 2025 --device cuda --output outputs/casia_b/seed2025/observations.jsonl
+python -m scripts.casia_b_results --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/observations.jsonl --device cuda --output outputs/casia_b/seed2025/principal_results.json
+python -m scripts.casia_b_mia --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/observations.jsonl --seed 2025 --device cuda --output outputs/casia_b/seed2025/membership.json
+```
+
+Numerical evaluation requires licensed CASIA-B silhouettes and the corresponding trained checkpoints. See the [complete CASIA-B protocol and run order](docs/CASIA_B_REPRODUCTION.md) and [checkpoint preparation](docs/CHECKPOINTS.md).
 
 ## Repository scope
 
@@ -76,12 +84,15 @@ The default pipeline uses the identity-classifier confidence path. No gallery is
 | --- | --- |
 | `opengait/modeling/models` | Encoding, evidence, stability, risk, protection, release, and auditor components |
 | `opengait/modeling/losses` | Recognition and privacy-aware objective functions |
-| `opengait/data` | Silhouette reading, sampling, and augmentation |
+| `opengait/data` | Silhouette reading, sampling, augmentation, and exact CASIA-B protocols |
 | `opengait/evaluation/retrieval.py` | Subject-level gallery matching interface |
-| `scripts/pipeline.py` | Single-sequence method entry point |
+| `scripts/pipeline.py` | Single-sequence explanation release |
+| `scripts/casia_b_*.py` | Indexing, partitions, frozen inference, metrics, and three-seed aggregation |
+| `attacks/descriptors.py` | 36-dimensional observable-channel descriptor |
+| `opengait/checkpoint.py`, `scripts/export_checkpoint.py` | Frozen-model validation and checkpoint export |
 | `configs/safegait_er/casia_b.yaml` | Model, protection, and objective parameters |
 
-Soft routing, privacy auditors, and objective functions are retained as independent training-time components. The pipeline does not fit these modules or generate benchmark result tables. Training weights, full experimental procedures, and datasets are managed separately.
+Soft routing, privacy auditors, and objective functions are included as training components. This evaluation package uses externally supplied trained recognition checkpoints. Full recognition training and supplementary experiments are managed separately.
 
 See [method details](docs/METHOD.md), [pipeline instructions](docs/RUNNING.md), and [third-party references](THIRD_PARTY_NOTICES.md).
 

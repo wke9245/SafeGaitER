@@ -65,5 +65,5 @@ def write_json(path, obj):
     )
 
 
-def load_checkpoint(path, device="cuda"):
-    return torch.load(resolve(path), map_location=get_device(device), weights_only=False)
+def load_checkpoint(path, device="cuda", weights_only=True):
+    return torch.load(resolve(path), map_location=get_device(device), weights_only=weights_only)

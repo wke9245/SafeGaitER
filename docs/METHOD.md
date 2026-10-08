@@ -2,7 +2,7 @@
 
 ## Hierarchical gait evidence
 
-The feature encoder uses a lightweight hierarchical convolutional architecture inspired by IHGR-Net. Shared convolutional stages feed global and local branches. Activation-guided reliability then refines their combined feature map at 1, 2, and 4 horizontal regions.
+The feature encoder uses a hierarchical convolutional architecture following the reliability-weighting principles of IHGR-Net. Shared convolutional stages feed global and local branches. Activation-guided reliability then refines their combined feature map at 1, 2, and 4 horizontal regions.
 
 For each region, the mean absolute activation supplies an energy statistic. A learned scale and bias map this statistic through a sigmoid gate. The gate weights the region's feature map, and the three spatial granularities are averaged. The refined frame output has 128 channels and spatial dimensions 16 by 11.
 
@@ -20,7 +20,7 @@ Identity contribution uses positive gradient-times-activation responses, average
 
 Local risk combines spatial reliability, temporal importance, identity contribution, and predicted stability. The local map is min-max normalized within each sequence. Sequence risk is the top-20-percent mean multiplied by confidence. With 30 frames and eight regions, the aggregation selects 48 units.
 
-The pipeline obtains confidence from the identity classifier. The retained gallery interface computes mean cosine similarity per subject with temperature 0.05.
+Single-sequence release obtains confidence from the identity classifier. CASIA-B evaluation computes mean cosine similarity per gallery subject with temperature 0.05. Self-matches are excluded.
 
 ## Private transformation and release
 
@@ -45,7 +45,7 @@ Spatial groups use strips 0-2, 3-4, and 5-7. Temporal intervals are [0, 8), [8, 
 
 The diagnostic mapper reads the protected state before release-level masking. Its nine categories are normal walking, carried object, clothing variation, local occlusion, lower-body occlusion, consecutive-frame occlusion, silhouette jitter, frame dropping, and combined disturbance.
 
-The pipeline uses the configured reliability reference [0.70, 0.70, 0.70]. Dataset conditions and disturbance labels are not supplied to the diagnostic mapper.
+Single-sequence release uses the configured reliability reference [0.70, 0.70, 0.70]. CASIA-B evaluation derives its reference from protected reliability values in the predicted subject\'s same-view NM gallery. Dataset conditions and disturbance labels are not supplied to the diagnostic mapper.
 
 ## Adversarial learning components
 
@@ -53,4 +53,4 @@ Independent branch encoders map 10-, 19-, and 12-dimensional release vectors int
 
 Privacy auditors provide auxiliary membership, identity, and linkage objectives. The objective functions combine recognition, stability, auditability, compactness, risk suppression, and reversed privacy loss. These modules are retained for method inspection and integration; the single-sequence entry point does not optimize them.
 
-All parameters used by the retained method components are specified in the YAML configuration. Outputs from untrained parameters do not represent empirical recognition or privacy results.
+Model and release parameters are specified in the checkpoint configuration. Evaluation uses compatible trained weights, a frozen recognizer, and independent post-hoc membership attackers. See [CASIA-B evaluation](CASIA_B_REPRODUCTION.md).

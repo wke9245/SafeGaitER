@@ -1,4 +1,4 @@
-# GPU method pipeline
+# GPU execution
 
 Run commands from the repository root with the Python environment activated.
 
@@ -39,33 +39,25 @@ The input must be an actual silhouette sequence:
 
 Sequence arrays use shape `[frames, height, width]`. Single-channel sequence arrays are also accepted. Frames are normalized to 64 by 44 and sampled deterministically to 30 frames.
 
-## Execution
+## Single-sequence release
 
-```bash
-python -m scripts.pipeline --input path/to/sequence.npy --device cuda
-```
-
-Model inference, gradient attribution, risk estimation, and explanation protection execute on the selected NVIDIA GPU. The entry point stops with an error if CUDA is unavailable.
-
-Without a checkpoint, the network uses untrained parameters. Its reliability scores, risk levels, and diagnostic categories are not trained model predictions.
-
-To supply learned weights:
+Model inference, gradient attribution, risk estimation, and explanation protection execute on the selected NVIDIA GPU. The entry point requires a trained checkpoint and an available CUDA device.
 
 ```bash
 python -m scripts.pipeline --input path/to/sequence.npy --checkpoint path/to/checkpoint.pt --device cuda
 ```
 
-Checkpoints must contain `model` and `config` entries. Weights are loaded strictly. The hierarchical encoder requires the `backbone.sgra.scale` and `backbone.sgra.bias` parameters. The checkpoint configuration is used unless `--config` explicitly selects another compatible configuration.
+Checkpoints contain `model`, `config`, and recorded training metadata. Weights load strictly, and all model parameters are frozen. The hierarchical encoder requires the `backbone.sgra.scale` and `backbone.sgra.bias` parameters. The checkpoint configuration controls preprocessing and release settings. See [checkpoint preparation](CHECKPOINTS.md).
 
-The entry point uses classifier confidence and contribution from the predicted identity logit. It does not construct a recognition gallery. The model's gallery-matching interface remains available for integration.
+The single-sequence entry point uses classifier confidence and contribution from the predicted identity logit. CASIA-B evaluation uses subject-level gallery retrieval and matched-sequence attribution; see [CASIA-B evaluation](CASIA_B_REPRODUCTION.md).
 
 ## Options
 
 | Option | Meaning |
 | --- | --- |
 | `--input` | Required silhouette file or image directory |
-| `--checkpoint` | Compatible trained model checkpoint |
-| `--config` | Explicit YAML configuration |
+| `--checkpoint` | Required compatible trained model checkpoint |
+| `--config` | Optional YAML configuration matching the checkpoint |
 | `--device cuda` | Default NVIDIA GPU |
 | `--device cuda:1` | Second visible NVIDIA GPU |
 | `--output` | Optional output JSON file |
@@ -82,4 +74,4 @@ Standard output contains only the permitted explanation packet. The optional JSO
 | Medium | `level`, `dominant_region`, `dominant_interval`, `diagnostic` |
 | High | `level`, `diagnostic` |
 
-The entry point does not export internal risk values, identity contributions, key-frame indices, or embeddings. It does not perform training, attacker fitting, or table generation.
+CASIA-B inference creates local observations for the recognition and membership analyses. Its result and attack commands generate metrics and fitted attacker checkpoints. The [CASIA-B guide](CASIA_B_REPRODUCTION.md) provides the execution order.
