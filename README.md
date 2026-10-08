@@ -1,21 +1,25 @@
 # SafeGait-ER
 
-PyTorch implementation of **SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition**.
+Method-oriented PyTorch implementation of **SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition**.
 
-The repository provides gait evidence encoding, explanation stability prediction, identity-sensitive risk estimation, risk-adaptive protection, three-level explanation release, adversarial privacy learning, and independent privacy evaluation.
+Submitted to *Applied Soft Computing Journal*, manuscript **ASOC-D-26-11494**.
 
-## Paper submission information
+The repository contains the principal algorithmic components and a single-sequence explanation pipeline. It covers hierarchical gait encoding, spatial reliability, temporal importance, identity contribution, stability prediction, structured privacy risk, risk-adaptive protection, and three-level explanation release.
 
-| Field | Information |
-| --- | --- |
-| Title | SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition |
-| Journal | Applied Soft Computing Journal |
-| Manuscript number | ASOC-D-26-11494 |
-| Status | Submitted |
+## Architecture
+
+1. Extract hierarchical frame features with global and local convolutional branches.
+2. Refine features using activation-guided reliability at 1, 2, and 4 horizontal regions.
+3. Construct separate eight-region evidence and aggregate frame importance.
+4. Estimate identity contribution, single-view stability, and structured privacy risk.
+5. Apply clipping, masking, coarsening, and Gaussian perturbation.
+6. Release the fields permitted by the low, medium, or high risk policy.
+
+The hierarchical refinement follows the reliability-weighting principles of IHGR-Net. The eight-region evidence stage supplies the fine-grained factors used by SafeGait-ER.
 
 ## Installation
 
-Python 3.9 or later is required. Create an isolated environment and install the dependencies:
+Python 3.9 or later is required.
 
 ```bash
 python -m venv .venv
@@ -26,88 +30,45 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-For CPU-only PyTorch, install the CPU wheel before the other dependencies:
+On Windows, `powershell -File setup.ps1` creates a CPU environment. CUDA 12.4 wheels can be selected with `powershell -File setup.ps1 -TorchIndex cu124`.
+
+## Input and method pipeline
+
+Provide an actual silhouette sequence as a NumPy array, silhouette pickle, or image directory. The reader normalizes silhouettes to 64 by 44 and samples 30 frames.
+
+Run the pipeline from the repository root:
 
 ```bash
-python -m pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -r requirements.txt
+python -m scripts.pipeline --input path/to/sequence.npy
 ```
 
-Windows users can run `powershell -File setup.ps1`. CUDA 12.4 wheels are available through `powershell -File setup.ps1 -TorchIndex cu124`.
-
-## Data preparation
-
-Provide the CASIA-B and OU-MVLP silhouette datasets in the following layout:
-
-```text
-data/
-  CASIA-B/
-    001/nm-01/000/silhouettes.pkl
-  OU-MVLP/
-    00001/00/000/silhouettes.pkl
-```
-
-The reader accepts silhouette pickle files, NumPy sequence files, and image folders. Dataset access and distribution follow the respective benchmark terms. The OU-MVLP subject partition is included in `configs/splits/OUMVLP.json`.
-
-See [data protocols](docs/DATA_PROTOCOLS.md) for recognition, auxiliary, and attacker partitions.
-
-## CASIA-B experiments
+Use a compatible trained checkpoint and optionally save the permitted release packet:
 
 ```bash
-python run.py train --config configs/safegait_er/casia_b.yaml
-python run.py recognition --queries 20
-python run.py privacy --protocol matched --repeated
-python run.py privacy --protocol stress
-python run.py audit
-python run.py profile
-python run.py inversion
-python run.py inversion --raw
-python run.py tables --results-root outputs
+python -m scripts.pipeline --input path/to/sequence.npy --checkpoint path/to/checkpoint.pt --output outputs/release.json
 ```
 
-Reconstructed Re-ID uses an independent recognition model:
+The default pipeline uses the identity-classifier confidence path. No gallery is supplied by this entry point. Without a checkpoint, parameters are randomly initialized and numerical outputs describe the computational structure only; they are not trained predictions.
 
-```bash
-python run.py train --strategy raw --seed 777 --output outputs/reid_777
-python run.py inversion --reid-checkpoint outputs/reid_777/checkpoint.pt
-```
+## Repository scope
 
-## OU-MVLP experiments
-
-Use `--config configs/safegait_er/ou_mvlp.yaml` for training and evaluation. Membership evaluation uses `--protocol stress`.
-
-```bash
-python run.py train --config configs/safegait_er/ou_mvlp.yaml
-python run.py recognition --config configs/safegait_er/ou_mvlp.yaml --queries 20
-python run.py privacy --config configs/safegait_er/ou_mvlp.yaml --protocol stress --repeated
-```
-
-## Experiment suites
-
-```bash
-python run.py sweep --suite main
-python run.py sweep --suite factors
-python run.py sweep --suite thresholds
-python run.py sweep --suite backbones
-python run.py sweep --suite transfer
-python run.py sweep --suite all --plan-only
-```
-
-The suites use seeds 2024, 2025, and 2026. Attack models are fitted independently for each interface and release budget. Summaries compute the per-seed best-of envelope before the mean and sample standard deviation.
-
-## Repository structure
-
-| Directory | Contents |
+| Path | Contents |
 | --- | --- |
-| `opengait/data` | Silhouette preprocessing, sampling, augmentation, and protocols |
-| `opengait/modeling/models` | Recognition, risk, protection, release, and privacy auditors |
-| `opengait/modeling/losses` | Recognition and privacy objectives |
-| `opengait/evaluation` | Retrieval and evaluation metrics |
-| `attacks` | Membership, linkage, identity, inversion, and repeated-release attacks |
-| `baselines` | Explanation protection controls |
-| `configs` | Benchmark experiment configurations and identity partitions |
-| `scripts` | Training, evaluation, profiling, and aggregation |
+| `opengait/modeling/models` | Encoding, evidence, stability, risk, protection, release, and auditor components |
+| `opengait/modeling/losses` | Recognition and privacy-aware objective functions |
+| `opengait/data` | Silhouette reading, sampling, and augmentation |
+| `opengait/evaluation/retrieval.py` | Subject-level gallery matching interface |
+| `scripts/pipeline.py` | Single-sequence method entry point |
+| `configs/safegait_er/casia_b.yaml` | Model, protection, and objective parameters |
 
-Additional documentation: [running experiments](docs/RUNNING.md), [method and parameters](docs/METHOD.md), and [third-party references](THIRD_PARTY_NOTICES.md).
+Soft routing, privacy auditors, and objective functions are retained as independent training-time components. The pipeline does not fit these modules or generate benchmark result tables. Training weights, full experimental procedures, and datasets are managed separately.
 
-Datasets, model checkpoints, and generated experiment outputs are stored locally and are excluded from version control.
+See [method details](docs/METHOD.md), [pipeline instructions](docs/RUNNING.md), and [third-party references](THIRD_PARTY_NOTICES.md).
+
+## References
+
+SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition. Submitted to Applied Soft Computing Journal.
+
+IHGR-Net: Towards Trustworthy Gait Recognition: Visualizing and Refining Hierarchical Motion Dependencies. *Complex & Intelligent Systems*, 2026. https://doi.org/10.1007/s40747-026-02381-6
+
+CASIA-B and OU-MVLP are subject to their respective access and distribution policies. Dataset silhouettes and pretrained recognition weights are not redistributed.

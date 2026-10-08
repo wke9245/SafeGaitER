@@ -1,36 +1,32 @@
-# Method and implementation
+# Method components
 
 ## Hierarchical gait evidence
 
-The input is a 30-frame silhouette sequence at resolution 64 by 44. Frame features have 128 channels and are partitioned into eight horizontal strips. Reliability-weighted strip features produce 256-dimensional frame descriptors, which are aggregated by learned temporal importance.
+The feature encoder uses a lightweight hierarchical convolutional architecture inspired by IHGR-Net. Shared convolutional stages feed global and local branches. Activation-guided reliability then refines their combined feature map at 1, 2, and 4 horizontal regions.
 
-The hierarchical trunk combines shared frame convolutions with global and local feature branches. The GaitPart trunk uses plain and focal frame convolutions while retaining the SafeGait-ER evidence heads.
+For each region, the mean absolute activation supplies an energy statistic. A learned scale and bias map this statistic through a sigmoid gate. The gate weights the region's feature map, and the three spatial granularities are averaged. The refined frame output has 128 channels and spatial dimensions 16 by 11.
+
+SafeGait-ER subsequently forms a separate evidence representation with eight horizontal regions per frame. Regional reliability weights pooled features to produce 256-dimensional frame descriptors. A two-layer temporal MLP supplies frame importance, followed by softmax and weighted sequence aggregation.
 
 ## Stability prediction and identity contribution
 
-A local explanation descriptor has 131 dimensions: 128 normalized regional features, spatial reliability, temporal importance, and identity contribution. Confidence is appended for the 132-dimensional predictor input.
+The local descriptor contains 128 normalized regional features, spatial reliability, temporal importance, and identity contribution, giving 131 dimensions. Confidence extends the stability-predictor input to 132 dimensions.
 
-The stability predictor uses widths 132, 704, 352, and 1, with ReLU hidden activations and a sigmoid output. Two independently augmented views supply the cosine-consistency target during training. Inference uses the predictor on a single view.
+The predictor uses widths 132, 704, 352, and 1, with ReLU hidden activations and a sigmoid output. The retained stability-target function computes consistency between two augmented descriptors. The method pipeline estimates stability from one view.
 
-Identity contribution is the positive gradient-times-activation response, averaged within each strip and normalized over the sequence. Training uses the predicted identity logit. Open-set explanation inference uses similarity to the highest-matching gallery sequence of the predicted subject.
+Identity contribution uses positive gradient-times-activation responses, averaged within each strip and normalized over the sequence. The pipeline targets the predicted identity logit. When a caller supplies a gallery to the model, contribution instead targets the highest-matching gallery sequence of the predicted subject.
 
 ## Risk estimation
 
-Local risk combines spatial reliability, temporal importance, identity contribution, and predicted stability. The local map is min-max normalized within each sequence. Sequence risk is the top-20-percent mean, multiplied by confidence. With 30 frames and eight strips, 48 risk units are selected.
+Local risk combines spatial reliability, temporal importance, identity contribution, and predicted stability. The local map is min-max normalized within each sequence. Sequence risk is the top-20-percent mean multiplied by confidence. With 30 frames and eight regions, the aggregation selects 48 units.
 
-Training confidence comes from the identity classifier. Retrieval confidence uses mean gallery similarity per subject with temperature 0.05.
+The pipeline obtains confidence from the identity classifier. The retained gallery interface computes mean cosine similarity per subject with temperature 0.05.
 
 ## Private transformation and release
 
 The transformation applies risk-adaptive clipping, fine-level masking, branch-specific coarsening, Gaussian perturbation, and release-level masking.
 
-The spatial groups are:
-
-- Upper: strips 0, 1, 2
-- Middle: strips 3, 4
-- Lower: strips 5, 6, 7
-
-The temporal intervals are [0, 8), [8, 15), [15, 23), and [23, 30).
+Spatial groups use strips 0-2, 3-4, and 5-7. Temporal intervals are [0, 8), [8, 15), [15, 23), and [23, 30).
 
 | Parameter | Value |
 | --- | --- |
@@ -41,34 +37,20 @@ The temporal intervals are [0, 8), [8, 15), [15, 23), and [23, 30).
 | Medium/high threshold | 0.65 |
 | Soft-routing sharpness | 20 |
 
-The released fields are:
-
 | Level | Visible fields |
 | --- | --- |
 | Low | Three spatial scores, four temporal scores, level flag |
 | Medium | Dominant region, dominant interval, level flag, diagnostic category |
 | High | Level flag, diagnostic category |
 
-The diagnostic mapper operates on the protected state before release-level masking. Its nine categories are normal walking, carried object, clothing variation, local occlusion, lower-body occlusion, consecutive-frame occlusion, silhouette jitter, frame dropping, and combined disturbance.
+The diagnostic mapper reads the protected state before release-level masking. Its nine categories are normal walking, carried object, clothing variation, local occlusion, lower-body occlusion, consecutive-frame occlusion, silhouette jitter, frame dropping, and combined disturbance.
 
-For natural sequences, reliability references use protected same-view NM gallery states from the predicted identity, excluding self-matches. Controlled disturbances use the paired clean source. The configured fallback reference is [0.70, 0.70, 0.70].
+The pipeline uses the configured reliability reference [0.70, 0.70, 0.70]. Dataset conditions and disturbance labels are not supplied to the diagnostic mapper.
 
-## Baseline protection
+## Adversarial learning components
 
-The individual controls apply clipping, Gaussian perturbation, random masking, or spatial-temporal coarsening. Generic hardening combines clipping, perturbation, and random masking. The DeepLeak gait adaptation applies Gaussian perturbation, range clipping, precision reduction, and small-attribution threshold masking to the continuous fields. Its settings are recorded under `baselines.deepleak` in the configuration. The key-frame indicator remains observable for continuous-field controls.
+Independent branch encoders map 10-, 19-, and 12-dimensional release vectors into 128-dimensional training representations. Soft routing retains gradients through continuous scores and release weights. Discrete categories, indices, and masking decisions are held fixed.
 
-## Adversarial learning
+Privacy auditors provide auxiliary membership, identity, and linkage objectives. The objective functions combine recognition, stability, auditability, compactness, risk suppression, and reversed privacy loss. These modules are retained for method inspection and integration; the single-sequence entry point does not optimize them.
 
-Separate branch encoders map the 10-, 19-, and 12-dimensional release vectors into 128-dimensional training representations. Soft routing makes the continuous scores and release weights differentiable. Discrete categories, indices, and masking decisions are held fixed.
-
-Auditor-side encoders and privacy auditors minimize the auxiliary privacy objective. Recognition and stability modules receive the opposite privacy-gradient direction together with recognition, stability, auditability, compactness, and risk-suppression objectives.
-
-Independent post-hoc attackers consume hard release packets and do not share parameters or optimizer states with training-time auditors.
-
-## Auditability and attacks
-
-Internal fidelity uses confidence drops from retaining the dominant coarse spatial region and temporal interval intersection. Natural-sequence coverage and controlled-disturbance measurements have separate denominators.
-
-Statistical packet descriptors have 36 dimensions. Native-field attack encoders map each visible interface into 64 dimensions. Reconstruction concatenates a 256-dimensional recognition embedding and a 256-dimensional visible-explanation encoding before 3D upsampling to 30 frames.
-
-All training constants and attacker schedules are specified in the YAML configurations. Table summaries are calculated from the saved evaluation outputs.
+All parameters used by the retained method components are specified in the YAML configuration. Outputs from untrained parameters do not represent empirical recognition or privacy results.

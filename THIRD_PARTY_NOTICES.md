@@ -1,14 +1,26 @@
 # Third-party references
 
-The method-specific protection, release, and attacker modules are maintained in this repository. The following upstream projects provide algorithmic and engineering references:
+SafeGait-ER's risk, protection, release, stability, and auditor components are implemented in this repository.
+
+## IHGR-Net
+
+The hierarchical reliability refinement follows the design principles described in:
+
+**Towards Trustworthy Gait Recognition: Visualizing and Refining Hierarchical Motion Dependencies.** *Complex & Intelligent Systems*, 2026.
+
+https://doi.org/10.1007/s40747-026-02381-6
+
+The method reference informs the activation-energy gates at 1, 2, and 4 spatial granularities. The implementation is independently written from those principles; complete IHGR-Net source code is not included.
+
+## Engineering and algorithmic references
 
 | Project | Reference use | Upstream source |
 | --- | --- | --- |
-| OpenGait | Frame feature extractors, data organization, benchmark protocols | https://github.com/ShiqiYu/OpenGait |
-| DeepLeak | Explanation clipping, noise, and masking | https://github.com/um-dsp/DeepLeak |
+| OpenGait | Plain and focal frame convolutions, silhouette organization | https://github.com/ShiqiYu/OpenGait |
 | Captum | Gradient-times-activation attribution | https://github.com/pytorch/captum |
-| Privacy Meter | Independent privacy attack evaluation | https://github.com/privacytrustlab/ml_privacy_meter |
+| DeepLeak | Explanation hardening background | https://github.com/um-dsp/DeepLeak |
+| Privacy Meter | Privacy auditing background | https://github.com/privacytrustlab/ml_privacy_meter |
 
-The OU-MVLP identity partition in `configs/splits/OUMVLP.json` originates from the OpenGait benchmark metadata. The upstream OpenGait repository specifies academic use.
+The supplied OpenGait materials specify academic use. Third-party Python dependencies retain their respective licenses.
 
-Third-party Python dependencies retain their respective licenses. No dataset silhouettes, upstream pretrained recognition weights, or complete upstream repository copies are distributed here.
+No dataset silhouettes, pretrained recognition weights, or complete upstream repositories are distributed here.

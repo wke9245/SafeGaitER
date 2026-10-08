@@ -42,26 +42,3 @@ def subject_match(
         "matched_index": matched_index,
         "subject_probabilities": probabilities,
     }
-
-
-def recognition_report(records, predictions, dataset="CASIA-B"):
-    from ..data.protocols import role
-
-    correct = []
-    by_condition, by_view = {}, {}
-    for record, prediction in zip(records, predictions):
-        if role(record, dataset) != "probe":
-            continue
-        success = float(record.subject == prediction)
-        correct.append(success)
-        condition = record.condition.split("-")[0].upper()
-        by_condition.setdefault(condition, []).append(success)
-        by_view.setdefault(record.view, []).append(success)
-    if not correct:
-        raise ValueError("No recognition probe sequences are available.")
-    return {
-        "rank1": sum(correct) / len(correct),
-        "probe_count": len(correct),
-        "by_condition": {k: sum(v) / len(v) for k, v in by_condition.items()},
-        "by_view": {k: sum(v) / len(v) for k, v in by_view.items()},
-    }

@@ -1,3 +1,0 @@
--r requirements.txt
-torchvision==0.21.0
-lpips==0.1.4

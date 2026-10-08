@@ -1,14 +1,9 @@
 dataset: CASIA-B
-data_root: data/CASIA-B
-auxiliary_root: data/OU-MVLP
-ou_split: configs/splits/OUMVLP.json
-output: outputs/casia_b
 seed: 2025
-seeds: [2024, 2025, 2026]
-device: auto
-workers: 0
+device: cpu
 frames: 30
 resolution: [64, 44]
+diagnostic_reference: [0.70, 0.70, 0.70]
 model:
   backbone: hierarchical
   channels: 128
@@ -30,22 +25,9 @@ release:
   sigma_min: 0.0
   sigma_max: 0.10
   kappa: 20.0
-baselines:
-  deepleak:
-    noise_level: 0.01
-    clamp_range: [0.0, 1.0]
-    precision: 4
-    mask_threshold: 0.001
+evaluation:
+  temperature: 0.05
 training:
-  epochs: 120
-  recognition_warmup: 60
-  lr_warmup: 5
-  p: 8
-  k: 4
-  lr_backbone: 0.0001
-  lr_privacy: 0.0003
-  min_lr: 0.000001
-  weight_decay: 0.0005
   margin: 0.2
   lambda_tri: 1.0
   lambda_a: 0.5
@@ -56,17 +38,3 @@ training:
   lambda_l: 0.5
   lambda_p: 0.5
   lambda_s: 0.5
-  strategy: safe
-evaluation:
-  batch_size: 8
-  temperature: 0.05
-attacks:
-  epochs: 50
-  batch_size: 256
-  lr: 0.001
-  weight_decay: 0.0001
-  linkage_fit_pairs_per_class: 50000
-  linkage_test_pairs_per_class: 20000
-  repeated_budgets: [1, 5, 10, 20]
-  inversion_epochs: 80
-  inversion_batch_size: 64

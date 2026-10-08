@@ -14,6 +14,27 @@ class FocalConv(nn.Module):
         return torch.cat([self.conv(part) for part in x.chunk(self.parts, dim=2)], dim=2)
 
 
+class MultiScaleReliability(nn.Module):
+    """Activation-guided feature refinement at multiple horizontal granularities."""
+
+    def __init__(self, levels=(1, 2, 4)):
+        super().__init__()
+        self.levels = tuple(levels)
+        self.scale = nn.Parameter(torch.ones(len(self.levels)))
+        self.bias = nn.Parameter(torch.zeros(len(self.levels)))
+
+    def forward(self, features):
+        refined_levels = []
+        for i, num_parts in enumerate(self.levels):
+            gated_parts = []
+            for part in features.chunk(num_parts, dim=2):
+                energy = part.abs().mean(dim=(1, 2, 3), keepdim=True)
+                reliability = torch.sigmoid(self.scale[i] * energy + self.bias[i])
+                gated_parts.append(part * reliability)
+            refined_levels.append(torch.cat(gated_parts, dim=2))
+        return torch.stack(refined_levels, dim=0).mean(dim=0)
+
+
 class HierarchicalEncoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -37,9 +58,14 @@ class HierarchicalEncoder(nn.Module):
             nn.LeakyReLU(0.1), nn.Conv2d(128, 128, 3, padding=1, bias=False), nn.LeakyReLU(0.1)
         )
 
+        self.sgra = MultiScaleReliability(levels=(1, 2, 4))
+
     def forward(self, x):
         x = self.middle(self.low(x))
-        return self.refine(self.global_path(x) + self.local_path(x))
+        global_features = self.global_path(x)
+        local_features = self.local_path(x)
+        features = self.refine(global_features + local_features)
+        return self.sgra(features)
 
 
 class GaitPartEncoder(nn.Module):

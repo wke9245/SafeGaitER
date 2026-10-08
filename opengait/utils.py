@@ -57,14 +57,3 @@ def write_json(path, obj):
 
 def load_checkpoint(path, device="cpu"):
     return torch.load(resolve(path), map_location=device, weights_only=False)
-
-
-def optimizer_groups(module, lr, decay):
-    decayed, plain = [], []
-    for name, p in module.named_parameters():
-        if p.requires_grad:
-            (plain if p.ndim < 2 or name.endswith("bias") else decayed).append(p)
-    return [
-        {"params": decayed, "lr": lr, "weight_decay": decay},
-        {"params": plain, "lr": lr, "weight_decay": 0.0},
-    ]
