@@ -1,6 +1,6 @@
 dataset: CASIA-B
 seed: 2025
-device: cpu
+device: cuda
 frames: 30
 resolution: [64, 44]
 diagnostic_reference: [0.70, 0.70, 0.70]

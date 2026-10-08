@@ -41,10 +41,20 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
 
 
-def get_device(name="auto"):
-    if name == "auto":
-        name = "cuda" if torch.cuda.is_available() else "cpu"
-    return torch.device(name)
+def get_device(name="cuda"):
+    try:
+        device = torch.device(name)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError("Choose a CUDA device such as cuda or cuda:0.") from error
+    if device.type != "cuda":
+        raise ValueError("SafeGait-ER requires an NVIDIA CUDA GPU.")
+    if not torch.cuda.is_available():
+        raise ValueError(
+            "CUDA is unavailable. Install the GPU dependencies and a compatible NVIDIA driver."
+        )
+    if device.index is not None and device.index >= torch.cuda.device_count():
+        raise ValueError("The requested CUDA device is not visible.")
+    return device
 
 
 def write_json(path, obj):
@@ -55,5 +65,5 @@ def write_json(path, obj):
     )
 
 
-def load_checkpoint(path, device="cpu"):
-    return torch.load(resolve(path), map_location=device, weights_only=False)
+def load_checkpoint(path, device="cuda"):
+    return torch.load(resolve(path), map_location=get_device(device), weights_only=False)

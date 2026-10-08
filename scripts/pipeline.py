@@ -18,7 +18,7 @@ from opengait.utils import (
 )
 
 
-def release_sequence(input_path, config, saved=None, device="cpu"):
+def release_sequence(input_path, config, saved=None, device="cuda"):
     """Compute evidence, protection, and the permitted release fields."""
     seed_everything(config["seed"])
     execution_device = get_device(device)
@@ -51,11 +51,12 @@ def main(argv=None):
     )
     parser.add_argument("--config", help="YAML configuration; otherwise use checkpoint settings")
     parser.add_argument("--checkpoint", help="Compatible model checkpoint")
-    parser.add_argument("--device", choices=("cpu", "cuda", "auto"), default="cpu")
+    parser.add_argument("--device", default="cuda", help="CUDA device, e.g. cuda or cuda:1")
     parser.add_argument("--output", help="Optional JSON file containing the release packet")
     args = parser.parse_args(argv)
 
-    saved = load_checkpoint(args.checkpoint, "cpu") if args.checkpoint else None
+    execution_device = get_device(args.device)
+    saved = load_checkpoint(args.checkpoint, execution_device) if args.checkpoint else None
     if args.config:
         config = load_config(args.config)
     elif saved is not None:
@@ -65,6 +66,7 @@ def main(argv=None):
     else:
         config = load_config("configs/safegait_er/casia_b.yaml")
 
+    config["device"] = str(execution_device)
     if saved is None:
         print("No checkpoint supplied: model parameters are untrained.", file=sys.stderr)
     packet = release_sequence(args.input, config, saved=saved, device=args.device)
