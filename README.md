@@ -4,6 +4,15 @@ PyTorch implementation of **SafeGait-ER: From Faithful Explanations to Privacy-A
 
 The repository provides gait evidence encoding, explanation stability prediction, identity-sensitive risk estimation, risk-adaptive protection, three-level explanation release, adversarial privacy learning, and independent privacy evaluation.
 
+## Paper submission information
+
+| Field | Information |
+| --- | --- |
+| Title | SafeGait-ER: From Faithful Explanations to Privacy-Aware Release in Gait Recognition |
+| Journal | Applied Soft Computing Journal |
+| Manuscript number | ASOC-D-26-11494 |
+| Status | Submitted |
+
 ## Installation
 
 Python 3.9 or later is required. Create an isolated environment and install the dependencies:
