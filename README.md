@@ -4,7 +4,7 @@ PyTorch components for **SafeGait-ER: From Faithful Explanations to Privacy-Awar
 
 Submitted to *Applied Soft Computing Journal*, manuscript **ASOC-D-26-11494**.
 
-The source includes hierarchical gait evidence, identity attribution, stability prediction, structured privacy risk, explanation protection and release, CASIA-B partitions, and independent membership auditing.
+The source includes hierarchical gait evidence, identity attribution, stability prediction, structured privacy risk, explanation protection and release, CASIA-B partitions, and independent membership auditing. Explanations are represented over 30 frames and eight spatial strips, then protected and released according to the estimated privacy risk.
 
 ## Installation
 
@@ -16,26 +16,58 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-On Windows, use `powershell -File setup.ps1`, then activate `.venv`.
+On Windows:
+
+```powershell
+powershell -File setup.ps1
+.\.venv\Scripts\Activate.ps1
+```
+
+Run all commands from the repository root with the environment activated. Use `--device cuda:0` to select a particular GPU.
 
 ## Usage
 
-Inputs are silhouette sequences sampled to 30 frames at 64 by 44 resolution. Supported formats include NumPy arrays, NPZ silhouettes, silhouette pickle files, and image directories.
+Inputs are silhouette sequences sampled to 30 frames at 64 by 44 resolution. Supported formats include NumPy arrays, NPZ silhouettes, silhouette pickle files, and image directories. Sequence arrays use `[frames, height, width]`; multi-array NPZ files require a `silhouettes` key. Image filenames must sort in frame order.
+
+For a single sequence, supply a checkpoint whose model definition and saved configuration match the implementation:
 
 ```bash
 python -m scripts.pipeline --input path/to/sequence.npy --checkpoint path/to/model.pt --device cuda --output outputs/release.json
 ```
 
-CASIA-B entry points: `casia_b_index`, `casia_b_partitions`, `casia_b_inference`, `casia_b_results`, `casia_b_mia`, and `casia_b_summary`. Run `python -m scripts.<command> --help` for arguments. Evaluation uses the subject and condition partitions defined in `opengait/data/protocols.py`.
+The command writes a risk-conditioned explanation packet to JSON. Its `--config` option accepts a YAML configuration matching the saved checkpoint configuration.
+
+## CASIA-B evaluation
+
+Organize the licensed silhouettes as `data/CASIA-B/<subject>/<condition>/<view>/`. Each sequence directory contains either one array file or its image frames. The index expects all 13,640 sequences: 124 identities, 11 views, and ten sequence conditions.
+
+Run indexing and partition export first:
+
+```bash
+python -m scripts.casia_b_index --data-root data/CASIA-B --manifest outputs/casia_b/manifest.csv
+python -m scripts.casia_b_partitions --manifest outputs/casia_b/manifest.csv --seeds 2024 2025 2026 --output outputs/casia_b/partitions
+```
+
+Next, use a compatible seed-2025 checkpoint for inference, recognition statistics, and independent membership inference. Replace `path/to/casia_b_seed2025.pt` with its location:
+
+```bash
+python -m scripts.casia_b_inference --manifest outputs/casia_b/manifest.csv --checkpoint path/to/casia_b_seed2025.pt --seed 2025 --device cuda --output outputs/casia_b/seed2025/observations.jsonl
+python -m scripts.casia_b_results --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/observations.jsonl --device cuda --output outputs/casia_b/seed2025/principal_results.json
+python -m scripts.casia_b_mia --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/observations.jsonl --seed 2025 --protocol identity_matched --device cuda --output outputs/casia_b/seed2025/membership_matched.json --checkpoint-dir outputs/casia_b/seed2025/attackers_matched
+```
+
+Recognition uses identities 075-124 with 2,200 gallery and 3,300 probe sequences. Release statistics use all 5,500 sequences from these identities. Membership inference fits separate attackers for score, raw explanation, and protected explanation inputs.
+
+See [CASIA-B evaluation](docs/CASIA_B_REPRODUCTION.md) for exact partitions, the identity-disjoint protocol, output files, and three-seed aggregation. Each seed requires its corresponding model checkpoint and inference artifacts. All entry points provide `--help`.
 
 ## Checkpoint
 
-Download `safegait_er_casia_b_seed2025.pt` from [Releases](https://github.com/wke9245/SafeGaitER/releases) into `checkpoints/`. The archive retains model, optimizer, scheduler, configuration, and training metadata. Its saved architecture is `hierarchical_full`, with 512 feature channels and a 256-dimensional embedding.
+Download `safegait_er_casia_b_seed2025.pt`, its JSON metadata, and `SHA256SUMS.txt` from [Releases](https://github.com/wke9245/SafeGaitER/releases/tag/v1.0.0) into `checkpoints/`. The checkpoint contains model weights, configuration, training metadata, optimizer state, and scheduler state.
 
 ```bash
-python -m scripts.inspect_checkpoint --checkpoint checkpoints/safegait_er_casia_b_seed2025.pt --device cuda
+python -m scripts.inspect_checkpoint --checkpoint checkpoints/safegait_er_casia_b_seed2025.pt --device cuda --output outputs/checkpoint_inspection.json
 ```
 
-Forward inference requires a model implementation and settings matching the checkpoint configuration.
+The inspection report records the file checksum, tensor checks, optimizer checks, and model binding. Forward inference requires a model implementation and settings matching the checkpoint configuration; review `architecture_binding` before evaluation. See [checkpoint usage](docs/CHECKPOINTS.md) for the file contract and optional sequence inspection.
 
 See [third-party references](THIRD_PARTY_NOTICES.md) for algorithmic and engineering sources.
