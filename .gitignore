@@ -29,3 +29,6 @@ Thumbs.db
 
 # Local credentials
 /key.md
+
+# Local distribution inventory
+/DISTRIBUTION.json
