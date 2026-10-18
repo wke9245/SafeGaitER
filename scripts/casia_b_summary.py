@@ -1,4 +1,4 @@
-"""Aggregate three seed-specific CASIA-B recognition or membership reports."""
+"""Aggregate three-seed CASIA-B recognition, privacy, and audit reports."""
 
 import argparse
 import json
@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from opengait.utils import write_json
+from opengait.evaluation.tables import write_tables
 
 
 def aggregate(readings):
@@ -15,6 +16,14 @@ def aggregate(readings):
         if any(not isinstance(row, dict) or set(row) != set(first) for row in readings):
             raise ValueError("Seed reports must have identical metric schemas.")
         return {key: aggregate([row[key] for row in readings]) for key in sorted(first)}
+    if any(value is None for value in readings):
+        if any(value is not None and type(value) not in (float, int) for value in readings):
+            raise ValueError("Undefined metrics cannot be mixed with protocol metadata.")
+        return {
+            "mean": None,
+            "sample_std": None,
+            "available_runs": sum(value is not None for value in readings),
+        }
     if all(type(value) in (float, int) for value in readings):
         vector = np.asarray(readings, dtype=np.float64)
         if not np.isfinite(vector).all():
@@ -29,6 +38,9 @@ def main():
     parser = argparse.ArgumentParser(description="Three-seed CASIA-B statistics")
     parser.add_argument("--inputs", nargs=3, required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--table-dir", help="Optional CSV destination for audit or repeated-release tables"
+    )
     args = parser.parse_args()
     reports = [json.loads(Path(path).read_text(encoding="utf-8")) for path in args.inputs]
     seeds = [report.get("seed") for report in reports]
@@ -47,6 +59,8 @@ def main():
         "artifacts": [row["artifacts"] for row in ordered],
     }
     write_json(args.output, result)
+    if args.table_dir:
+        write_tables(ordered, args.table_dir)
     print(f"Saved three-seed summary to {args.output}")
 
 

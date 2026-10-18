@@ -3,3 +3,4 @@ torch==2.14.1+cu132
 numpy==2.5.3
 PyYAML==6.0.3
 Pillow==12.3.0
+scikit-learn>=1.6,<2.0

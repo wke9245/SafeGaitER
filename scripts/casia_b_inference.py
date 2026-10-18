@@ -28,6 +28,13 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--seed", type=int, choices=(2024, 2025, 2026), default=2025)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--releases",
+        type=int,
+        choices=range(1, 201),
+        default=1,
+        help="Independent stochastic releases per fixed source sequence",
+    )
     parser.add_argument("--output", default="outputs/casia_b/observations.jsonl")
     args = parser.parse_args()
     device = get_device(args.device)
@@ -122,6 +129,15 @@ def main():
                     },
                     "safe_packet": packet,
                 }
+                if args.releases > 1:
+                    packets = [packet]
+                    with torch.no_grad():
+                        for _ in range(1, args.releases):
+                            repeated_state = protector(out)
+                            packets.append(
+                                release.packets(repeated_state, out["risk"], reference)[0]
+                            )
+                    result["release_packets"] = packets
                 handle.write(json.dumps(result, ensure_ascii=False, allow_nan=False) + "\n")
                 if index % 500 == 0:
                     print(f"Processed {index}/{len(records)} CASIA-B sequences", flush=True)
@@ -140,6 +156,8 @@ def main():
             "manifest_key_sha256": manifest_digest(records),
             "observations_sha256": sha256_file(destination.resolve()),
             "sequences": len(records),
+            "release_count": args.releases,
+            "release_settings": config["release"],
             "device": str(device),
             "torch_version": str(torch.__version__),
         },

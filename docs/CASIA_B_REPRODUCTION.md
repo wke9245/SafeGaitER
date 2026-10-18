@@ -113,3 +113,5 @@ The summarizer requires one report per seed, matching metric schemas, and the sa
 | `*_summary.json` | Three-seed means and sample standard deviations |
 
 Protocol definitions are maintained in [opengait/data/protocols.py](../opengait/data/protocols.py). Checkpoint loading and inspection are described in [CHECKPOINTS.md](CHECKPOINTS.md).
+
+The independent recognition-error audit, repeated-release budgets through 200 queries, native-field linkage, and manuscript table exports are described in [AUDIT_AND_QUERY_BUDGETS.md](AUDIT_AND_QUERY_BUDGETS.md).

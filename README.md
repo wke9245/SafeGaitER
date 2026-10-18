@@ -8,7 +8,7 @@ The source includes hierarchical gait evidence, identity attribution, stability 
 
 ## Installation
 
-Requires Python 3.12 or newer, CUDA-enabled PyTorch, and an NVIDIA GPU. Dependencies are pinned in `requirements.txt`.
+Requires Python 3.12 or newer, CUDA-enabled PyTorch, and an NVIDIA GPU. Dependencies are specified in `requirements.txt`. The independent triage auditor uses scikit-learn's deterministic `lbfgs` solver; recognizer inference and privacy-attack training use CUDA.
 
 ```bash
 python3.14 -m venv .venv
@@ -59,6 +59,23 @@ python -m scripts.casia_b_mia --manifest outputs/casia_b/manifest.csv --observat
 Recognition uses identities 075-124 with 2,200 gallery and 3,300 probe sequences. Release statistics use all 5,500 sequences from these identities. Membership inference fits separate attackers for score, raw explanation, and protected explanation inputs.
 
 See [CASIA-B evaluation](docs/CASIA_B_REPRODUCTION.md) for exact partitions, the identity-disjoint protocol, output files, and three-seed aggregation. Each seed requires its corresponding model checkpoint and inference artifacts. All entry points provide `--help`.
+
+## Independent audit and repeated releases
+
+The independent recognition-error audit uses subjects 075-099 for fitting and 100-124 for evaluation, with 1,650 recognition probes in each partition. Five independently fitted logistic-regression auditors compare retrieval confidence, release level, raw explanations, and the protected packet. Feature scaling is fitted exclusively on the audit-fit partition.
+
+```bash
+python -m scripts.casia_b_audit --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/observations.jsonl --seed 2025 --output outputs/casia_b/seed2025/triage.json --model-dir outputs/casia_b/seed2025/audit_models
+```
+
+For repeated-release evaluation, collect 200 stochastic packets per source sequence under a frozen recognizer and release policy, then fit independent membership and native-field linkage attackers at each query budget:
+
+```bash
+python -m scripts.casia_b_inference --manifest outputs/casia_b/manifest.csv --checkpoint path/to/casia_b_seed2025.pt --seed 2025 --releases 200 --device cuda --output outputs/casia_b/seed2025/repeated_observations.jsonl
+python -m scripts.casia_b_repeated --manifest outputs/casia_b/manifest.csv --observations outputs/casia_b/seed2025/repeated_observations.jsonl --seed 2025 --device cuda --output outputs/casia_b/seed2025/repeated.json --checkpoint-dir outputs/casia_b/seed2025/repeated_attackers
+```
+
+Query budgets are 1, 5, 10, 20, 50, 100, and 200. Repeated packets are pooled within each source sequence. The AUC-selected membership attack also supplies the interpolated TPR at 1% FPR. See [independent audit and query budgets](docs/AUDIT_AND_QUERY_BUDGETS.md) for exact settings, saved artifacts, and CSV exports of Tables 11, 12, and D.11.
 
 ## Checkpoint
 

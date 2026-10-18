@@ -5,6 +5,7 @@ One record represents one complete silhouette sequence, not one frame.
 """
 
 import csv
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,4 +130,57 @@ def identity_disjoint_stress(records, seed=2025):
         selected_nonmember = rng.choice(len(nonmembers), 2750, replace=False)
         result[phase] = [(members[int(i)], 1) for i in selected_member]
         result[phase] += [(nonmembers[int(i)], 0) for i in selected_nonmember]
+    return result
+
+
+def audit_partitions(records):
+    """Identity-disjoint recognition probes for independent error triage."""
+    probes = grouped_roles(records)["probe"]
+    split = {
+        "fit": [r for r in probes if 75 <= int(r.subject) <= 99],
+        "evaluate": [r for r in probes if 100 <= int(r.subject) <= 124],
+    }
+    for phase, entries in split.items():
+        if len(entries) != 1650 or len({r.subject for r in entries}) != 25:
+            raise ValueError(f"Audit {phase} requires 1,650 probes from 25 identities.")
+    return split
+
+
+def linkage_pairs(records, seed=2025):
+    """Distinct within-phase pairs for the held-out-identity linkage protocol."""
+    rng = np.random.default_rng(seed)
+    result = {}
+    for phase, subject_range, per_class in (
+        ("fit", range(75, 100), 50000),
+        ("evaluate", range(100, 125), 20000),
+    ):
+        groups = defaultdict(list)
+        for record in sorted(records, key=lambda r: r.key):
+            if int(record.subject) in subject_range:
+                groups[record.subject].append(record.key)
+        subjects = sorted(groups)
+        if len(subjects) != 25 or any(len(groups[s]) != 110 for s in subjects):
+            raise ValueError("Linkage requires 110 sequences for each of 25 identities.")
+        pairs = []
+        seen = set()
+        for label in (1, 0):
+            count = 0
+            while count < per_class:
+                if label:
+                    subject = subjects[int(rng.integers(len(subjects)))]
+                    a, b = rng.choice(len(groups[subject]), size=2, replace=False)
+                    first, second = groups[subject][int(a)], groups[subject][int(b)]
+                else:
+                    a, b = rng.choice(len(subjects), size=2, replace=False)
+                    first_pool, second_pool = groups[subjects[int(a)]], groups[subjects[int(b)]]
+                    first = first_pool[int(rng.integers(len(first_pool)))]
+                    second = second_pool[int(rng.integers(len(second_pool)))]
+                first, second = sorted((first, second))
+                if (first, second) in seen:
+                    continue
+                seen.add((first, second))
+                pairs.append((first, second, label))
+                count += 1
+        rng.shuffle(pairs)
+        result[phase] = pairs
     return result

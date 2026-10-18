@@ -149,9 +149,7 @@ def inspect(saved, device, input_path=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Inspect a SafeGait-ER checkpoint on a CUDA GPU")
-    parser.add_argument(
-        "--checkpoint", default="checkpoints/safegait_er_casia_b_seed2025.pt"
-    )
+    parser.add_argument("--checkpoint", default="checkpoints/safegait_er_casia_b_seed2025.pt")
     parser.add_argument("--device", default="cuda", help="CUDA device such as cuda or cuda:0")
     parser.add_argument("--input", help="Optional silhouette sequence for forward inspection")
     parser.add_argument("--output", default="outputs/checkpoint_inspection.json")

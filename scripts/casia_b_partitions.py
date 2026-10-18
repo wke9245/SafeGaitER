@@ -8,9 +8,11 @@ from pathlib import Path
 
 from opengait.evaluation.observations import manifest_digest
 from opengait.data.protocols import (
+    audit_partitions,
     grouped_roles,
     identity_disjoint_stress,
     matched_membership,
+    linkage_pairs,
     read_manifest,
 )
 
@@ -27,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output", default="outputs/casia_b/partitions")
+    parser.add_argument("--include-linkage", action="store_true", help="Export linkage pair CSVs")
     parser.add_argument(
         "--seeds", nargs="+", type=int, choices=(2024, 2025, 2026), default=[2024, 2025, 2026]
     )
@@ -50,7 +53,23 @@ def main():
         write_partition(
             out / f"recognizer_{name}.csv", [(r, int(name == "train")) for r in entries]
         )
+    for phase, entries in audit_partitions(records).items():
+        with (out / f"audit_{phase}.csv").open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["sequence_key", "subject", "condition", "view"])
+            writer.writerows((r.key, r.subject, r.condition, r.view) for r in entries)
     for seed in args.seeds:
+        if args.include_linkage:
+            for phase, pairs in linkage_pairs(records, seed).items():
+                filename = out / f"linkage_seed{seed}_{phase}.csv"
+                with filename.open("w", encoding="utf-8", newline="") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow(["sample_index", "first_key", "second_key", "same_identity"])
+                    writer.writerows((i, *pair) for i, pair in enumerate(pairs))
+                summary["partitions"][filename.name] = {
+                    "sha256": hashlib.sha256(filename.read_bytes()).hexdigest(),
+                    "pairs": len(pairs),
+                }
         for protocol, split in (
             ("identity_matched", matched_membership(records, seed)),
             ("identity_disjoint_stress", identity_disjoint_stress(records, seed)),
